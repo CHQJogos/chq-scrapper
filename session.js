@@ -46,7 +46,19 @@ async function login() {
     await page.fill(SELETORES.campoUsuario, CHQ_USER);
     await page.fill(SELETORES.campoSenha, CHQ_PASS);
     await page.click(SELETORES.botaoLogin);
-    await page.waitForSelector(SELETORES.elementoLogado, { timeout: 20000 });
+
+    try {
+      await page.waitForSelector(SELETORES.elementoLogado, { timeout: 20000 });
+    } catch (erroEspera) {
+      console.log(`Após submeter o login, URL: ${page.url()} | título: ${await page.title()}`);
+      const htmlTrecho = (await page.content()).slice(0, 2000);
+      console.log('Elemento de "logado" não apareceu. Trecho do HTML recebido:');
+      console.log(htmlTrecho);
+      fs.mkdirSync(path.dirname(SESSION_PATH), { recursive: true });
+      await page.screenshot({ path: path.join(path.dirname(SESSION_PATH), 'debug-login.png'), fullPage: true }).catch(() => {});
+      throw erroEspera;
+    }
+
     fs.mkdirSync(path.dirname(SESSION_PATH), { recursive: true });
     await context.storageState({ path: SESSION_PATH });
     console.log('Login efetuado e sessão salva.');
