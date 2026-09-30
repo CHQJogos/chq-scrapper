@@ -20,12 +20,12 @@ services:
       - "3000"
     networks:
       - default
-      - rede_do_n8n   # TODO: trocar pelo nome real da rede do n8n (ver `docker network ls`)
+      - n8n-4lte_default   # TODO: trocar pelo nome real da rede do n8n (ver `docker network ls`)
 
 volumes:
   chq-scraper-dados:
 
 networks:
   default:
-  rede_do_n8n:
+  n8n-4lte_default:
     external: true   # TODO: trocar "rede_do_n8n" acima pelo nome real
