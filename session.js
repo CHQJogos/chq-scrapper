@@ -45,18 +45,25 @@ async function login() {
 
     await page.fill(SELETORES.campoUsuario, CHQ_USER);
     await page.fill(SELETORES.campoSenha, CHQ_PASS);
-    await page.click(SELETORES.botaoLogin);
+    await Promise.all([
+      page.waitForNavigation({ waitUntil: 'networkidle', timeout: 20000 }).catch(() => {}),
+      page.click(SELETORES.botaoLogin),
+    ]);
+    console.log(`Após submeter o login, caiu em: ${page.url()} | título: ${await page.title()}`);
 
-    try {
-      await page.waitForSelector(SELETORES.elementoLogado, { timeout: 20000 });
-    } catch (erroEspera) {
-      console.log(`Após submeter o login, URL: ${page.url()} | título: ${await page.title()}`);
-      const htmlTrecho = (await page.content()).slice(0, 2000);
-      console.log('Elemento de "logado" não apareceu. Trecho do HTML recebido:');
+    // O submit pode redirecionar pra home da loja em vez do painel admin.
+    // Navega explicitamente pro painel pra checar se a sessão está autenticada.
+    await page.goto(`${BASE_URL}/?view=ecom/admin/home`, { waitUntil: 'networkidle', timeout: 20000 });
+    console.log(`Após navegar pro painel admin: ${page.url()} | título: ${await page.title()}`);
+
+    const logado = await page.locator(SELETORES.elementoLogado).count();
+    if (logado === 0) {
+      const htmlTrecho = (await page.content()).slice(0, 3000);
+      console.log('Elemento de "logado" não apareceu no painel admin. Trecho do HTML recebido:');
       console.log(htmlTrecho);
       fs.mkdirSync(path.dirname(SESSION_PATH), { recursive: true });
       await page.screenshot({ path: path.join(path.dirname(SESSION_PATH), 'debug-login.png'), fullPage: true }).catch(() => {});
-      throw erroEspera;
+      throw new Error('Login parece ter falhado: painel admin não mostrou o elemento de usuário logado (ver logs/trecho de HTML acima).');
     }
 
     fs.mkdirSync(path.dirname(SESSION_PATH), { recursive: true });
