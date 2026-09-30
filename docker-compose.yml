@@ -1,0 +1,31 @@
+services:
+  chq-scraper:
+    build: .
+    container_name: chq-scraper
+    restart: unless-stopped
+    environment:
+      - CHQ_USER=${CHQ_USER}
+      - CHQ_PASS=${CHQ_PASS}
+      - CHQ_LOGIN_URL=${CHQ_LOGIN_URL:-https://www.chq.com.br/?view=ecom/admin/login}
+      - CHQ_BASE_URL=${CHQ_BASE_URL:-https://www.chq.com.br}
+      - TOKEN_INTERNO=${TOKEN_INTERNO}
+      - RATE_LIMIT_MS=${RATE_LIMIT_MS:-7000}
+      - SESSION_PATH=/dados/session.json
+      - PORT=3000
+    volumes:
+      - chq-scraper-dados:/dados
+    # Não expõe porta pro host/internet — o n8n chama por dentro da rede
+    # Docker compartilhada, pelo nome do serviço (http://chq-scraper:3000).
+    expose:
+      - "3000"
+    networks:
+      - default
+      - rede_do_n8n   # TODO: trocar pelo nome real da rede do n8n (ver `docker network ls`)
+
+volumes:
+  chq-scraper-dados:
+
+networks:
+  default:
+  rede_do_n8n:
+    external: true   # TODO: trocar "rede_do_n8n" acima pelo nome real
