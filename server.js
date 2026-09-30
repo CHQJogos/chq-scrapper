@@ -1,26 +1,8 @@
-/**
- * Microserviço de extração de pedidos do painel admin do chq.com.br.
- *
- * Endpoints:
- *   GET  /health           -> verifica se o serviço e a sessão de login estão OK
- *   POST /extrair          -> body: { "cod": "12091134" } -> devolve os dados do pedido
- *
- * Variáveis de ambiente esperadas (configuradas no docker-compose ou no
- * Form Editor do Docker Manager da Hostinger):
- *   CHQ_USER            - usuário de login do painel admin
- *   CHQ_PASS            - senha de login do painel admin
- *   CHQ_LOGIN_URL        - URL da página de login do admin
- *   CHQ_BASE_URL          - URL base do site (ex: https://www.chq.com.br)
- *   TOKEN_INTERNO         - token simples pra proteger o endpoint (header Authorization)
- *   RATE_LIMIT_MS          - intervalo mínimo entre extrações, em ms (padrão 7000)
- *   PORT                 - porta do servidor (padrão 3000)
- */
-
 const express = require('express');
+const fs = require('fs');
 const path = require('path');
 const PQueue = require('p-queue').default;
-
-const { ensureLoggedIn, isSessaoValida } = require('./session');
+const { ensureLoggedIn, isSessaoValida, SESSION_PATH } = require('./session');
 const { extrairPedido } = require('./scraper');
 
 const PORT = process.env.PORT || 3000;
@@ -30,12 +12,10 @@ const RATE_LIMIT_MS = Number(process.env.RATE_LIMIT_MS || 7000);
 const app = express();
 app.use(express.json());
 
-// Fila com concorrência 1 e intervalo mínimo entre execuções, pra não
-// disparar a proteção anti-bot do painel.
 const fila = new PQueue({ concurrency: 1, interval: RATE_LIMIT_MS, intervalCap: 1 });
 
 function checarToken(req, res, next) {
-  if (!TOKEN_INTERNO) return next(); // sem token configurado = sem checagem (só pra teste local)
+  if (!TOKEN_INTERNO) return next();
   const auth = req.headers.authorization || '';
   if (auth !== `Bearer ${TOKEN_INTERNO}`) {
     return res.status(401).json({ erro: 'Token inválido ou ausente' });
@@ -48,12 +28,19 @@ app.get('/health', async (req, res) => {
   res.json({ status: 'ok', sessaoOk });
 });
 
+app.get('/debug-screenshot', checarToken, (req, res) => {
+  const screenshotPath = path.join(path.dirname(SESSION_PATH), 'debug-login.png');
+  if (!fs.existsSync(screenshotPath)) {
+    return res.status(404).json({ erro: 'Nenhum screenshot de debug disponível ainda.' });
+  }
+  res.sendFile(screenshotPath);
+});
+
 app.post('/extrair', checarToken, async (req, res) => {
   const { cod } = req.body || {};
   if (!cod) {
     return res.status(400).json({ erro: 'Informe o campo "cod" com o número do pedido' });
   }
-
   try {
     const resultado = await fila.add(async () => {
       await ensureLoggedIn();
