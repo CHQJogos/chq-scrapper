@@ -1,5 +1,5 @@
 const { chromium } = require('playwright');
-const { SESSION_PATH } = require('./session');
+const { SESSION_PATH, pareceRedirecionadoParaLogin } = require('./session');
 
 const BASE_URL = process.env.CHQ_BASE_URL || 'https://www.chq.com.br';
 
@@ -12,9 +12,8 @@ async function extrairPedido(cod) {
     const url = `${BASE_URL}/?view=ecom/admin/compra&cod=${cod}`;
     await page.goto(url, { waitUntil: 'networkidle', timeout: 20000 });
 
-    const logado = await page.locator('.user-name a.pedido-cinza').count();
-    if (logado === 0) {
-      throw new Error('Sessão parece inválida (elemento ".user-name a.pedido-cinza" não encontrado)');
+    if (pareceRedirecionadoParaLogin(page.url())) {
+      throw new Error('Sessão parece inválida (fomos redirecionados de volta pro login ao acessar o pedido)');
     }
 
     const dados = await page.evaluate(() => {

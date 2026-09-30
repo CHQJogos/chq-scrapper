@@ -12,8 +12,15 @@ const SELETORES = {
   campoUsuario: 'input[name="lnick"]',
   campoSenha: '#senha_logar',
   botaoLogin: 'input[type="submit"][value="Efetuar login"]',
-  elementoLogado: '.user-name a.pedido-cinza',
 };
+
+// Depois de navegar pra uma página que exige login, o site redireciona de
+// volta pra "?view=ecom/logar" quando a sessão não está autenticada. Usamos
+// isso como prova de login, em vez de depender de um elemento específico do
+// layout (que muda de página pra página e é frágil).
+function pareceRedirecionadoParaLogin(urlFinal) {
+  return urlFinal.includes('view=ecom/logar') || urlFinal.includes('logar_me.php');
+}
 
 async function login() {
   if (!CHQ_USER || !CHQ_PASS) {
@@ -52,18 +59,18 @@ async function login() {
     console.log(`Após submeter o login, caiu em: ${page.url()} | título: ${await page.title()}`);
 
     // O submit pode redirecionar pra home da loja em vez do painel admin.
-    // Navega explicitamente pro painel pra checar se a sessão está autenticada.
+    // Navega explicitamente pro painel pra confirmar que a sessão está autenticada.
     await page.goto(`${BASE_URL}/?view=ecom/admin/home`, { waitUntil: 'networkidle', timeout: 20000 });
-    console.log(`Após navegar pro painel admin: ${page.url()} | título: ${await page.title()}`);
+    const urlFinal = page.url();
+    console.log(`Após navegar pro painel admin: ${urlFinal} | título: ${await page.title()}`);
 
-    const logado = await page.locator(SELETORES.elementoLogado).count();
-    if (logado === 0) {
+    if (pareceRedirecionadoParaLogin(urlFinal)) {
       const htmlTrecho = (await page.content()).slice(0, 3000);
-      console.log('Elemento de "logado" não apareceu no painel admin. Trecho do HTML recebido:');
+      console.log('Foi redirecionado de volta pro login ao tentar acessar o painel admin. Trecho do HTML recebido:');
       console.log(htmlTrecho);
       fs.mkdirSync(path.dirname(SESSION_PATH), { recursive: true });
       await page.screenshot({ path: path.join(path.dirname(SESSION_PATH), 'debug-login.png'), fullPage: true }).catch(() => {});
-      throw new Error('Login parece ter falhado: painel admin não mostrou o elemento de usuário logado (ver logs/trecho de HTML acima).');
+      throw new Error('Login parece ter falhado: ao acessar o painel admin, fomos redirecionados de volta pro login (ver logs/trecho de HTML acima).');
     }
 
     fs.mkdirSync(path.dirname(SESSION_PATH), { recursive: true });
@@ -81,8 +88,7 @@ async function isSessaoValida() {
   const page = await context.newPage();
   try {
     await page.goto(`${BASE_URL}/?view=ecom/admin/home`, { waitUntil: 'networkidle', timeout: 15000 });
-    const logado = await page.locator(SELETORES.elementoLogado).count();
-    return logado > 0;
+    return !pareceRedirecionadoParaLogin(page.url());
   } catch {
     return false;
   } finally {
@@ -95,4 +101,4 @@ async function ensureLoggedIn() {
   if (!valida) { await login(); }
 }
 
-module.exports = { login, isSessaoValida, ensureLoggedIn, SESSION_PATH };
+module.exports = { login, isSessaoValida, ensureLoggedIn, SESSION_PATH, pareceRedirecionadoParaLogin };
