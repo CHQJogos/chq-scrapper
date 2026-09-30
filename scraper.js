@@ -1,20 +1,3 @@
-/**
- * Extração dos dados de um pedido específico do painel admin do chq.com.br.
- *
- * Seletores/fontes confirmados a partir do HTML real de páginas de pedido
- * (uma "Retirada na loja" e uma com envio "Sedex"):
- *   - Endereço/CPF/nome: variável JS global `enderecoOriginal` (presente em
- *     pedidos com envio — mais confiável que ler o DOM)
- *   - Forma de pagamento: .payment-label b
- *   - Forma de envio: texto dentro do box "Forma de Envio"
- *   - Valores (itens/desconto/frete/total): tabela .table-summary
- *   - Nome do cliente (fallback): .user-name a.pedido-cinza
- *   - Verificação de sessão: .minha-conta
- *
- * Pedidos do tipo "Retirada na loja" não têm `enderecoOriginal` nem CPF —
- * nesse caso os campos de endereço ficam null, o que é esperado.
- */
-
 const { chromium } = require('playwright');
 const { SESSION_PATH } = require('./session');
 
@@ -29,9 +12,9 @@ async function extrairPedido(cod) {
     const url = `${BASE_URL}/?view=ecom/admin/compra&cod=${cod}`;
     await page.goto(url, { waitUntil: 'networkidle', timeout: 20000 });
 
-    const logado = await page.locator('.minha-conta').count();
+    const logado = await page.locator('.user-name a.pedido-cinza').count();
     if (logado === 0) {
-      throw new Error('Sessão parece inválida (elemento ".minha-conta" não encontrado)');
+      throw new Error('Sessão parece inválida (elemento ".user-name a.pedido-cinza" não encontrado)');
     }
 
     const dados = await page.evaluate(() => {
@@ -53,8 +36,6 @@ async function extrairPedido(cod) {
         }
       });
 
-      // Endereço/CPF: prioriza a variável global `enderecoOriginal` (pedidos
-      // com envio). Se não existir (ex: retirada na loja), fica tudo null.
       const end = typeof enderecoOriginal !== 'undefined' ? enderecoOriginal : null;
 
       return {
@@ -109,5 +90,3 @@ async function extrairPedido(cod) {
 }
 
 module.exports = { extrairPedido };
-
-

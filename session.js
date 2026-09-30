@@ -12,7 +12,7 @@ const SELETORES = {
   campoUsuario: 'input[name="lnick"]',
   campoSenha: '#senha_logar',
   botaoLogin: 'input[type="submit"][value="Efetuar login"]',
-  elementoLogado: '.minha-conta',
+  elementoLogado: '.user-name a.pedido-cinza',
 };
 
 async function login() {
