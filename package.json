@@ -4,12 +4,10 @@
   "description": "Microserviço que extrai dados de pedidos do painel admin do chq.com.br via Playwright, com sessão persistente e fila com rate limit.",
   "main": "server.js",
   "type": "commonjs",
-  "scripts": {
-    "start": "node server.js"
-  },
+  "scripts": { "start": "node server.js" },
   "dependencies": {
     "express": "^4.19.2",
-    "playwright": "^1.48.0",
+    "playwright": "1.63.0",
     "p-queue": "^6.6.2"
   }
 }
